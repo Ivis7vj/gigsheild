@@ -96,6 +96,7 @@ class Claim(BaseModel):
     behavioral_risk: str = None  # LOW, MEDIUM, HIGH
     payout_status: str = None  # INITIATED, PROCESSING, COMPLETED, FAILED
     payout_transaction_id: str = None
+    payout_utr: str = None  # Unique Transaction Reference for UPI payouts
     payout_time: datetime = None
     gateway_response: dict = None
 

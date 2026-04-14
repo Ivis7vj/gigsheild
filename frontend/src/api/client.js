@@ -1,7 +1,16 @@
 import axios from 'axios';
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://127.0.0.1:8000/api';
+
+export const isDebugMode = () =>
+  import.meta.env.VITE_DEBUG_API === 'true' ||
+  localStorage.getItem('debug_mode') === 'true';
+
 const api = axios.create({
-  baseURL: 'https://gigshield-server.onrender.com/api',
+  baseURL: API_BASE_URL,
+  timeout: 15000,
 });
 
 api.interceptors.request.use(
@@ -10,9 +19,79 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    if (isDebugMode()) {
+      console.log('[API REQUEST]', {
+        method: config.method?.toUpperCase(),
+        url: `${config.baseURL}${config.url}`,
+        baseURL: config.baseURL,
+        params: config.params,
+        data: config.data,
+      });
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
+
+api.interceptors.response.use(
+  (response) => {
+    if (isDebugMode()) {
+      console.log('[API RESPONSE]', {
+        url: response.config?.url,
+        status: response.status,
+        data: response.data,
+      });
+    }
+    return response;
+  },
+  (error) => {
+    if (isDebugMode()) {
+      console.error('[API ERROR]', {
+        url: error.config?.url,
+        status: error.response?.status,
+        message: error.message,
+        data: error.response?.data,
+      });
+    }
+    return Promise.reject(error);
+  }
+);
+
+export function normalizeApiError(error, fallbackMessage = 'Something went wrong') {
+  if (!error) {
+    return { message: fallbackMessage, isNetworkError: false, status: null };
+  }
+
+  if (!error.response) {
+    return {
+      message: 'Backend unreachable. Please check connection and try again.',
+      isNetworkError: true,
+      status: null,
+    };
+  }
+
+  return {
+    message: error.response?.data?.detail || error.message || fallbackMessage,
+    isNetworkError: false,
+    status: error.response.status,
+  };
+}
+
+export async function apiRequest(requestFn, { retries = 1, retryDelayMs = 500 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
 
 export default api;

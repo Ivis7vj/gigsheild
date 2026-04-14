@@ -6,6 +6,29 @@ import uuid
 import random
 from datetime import datetime
 from services.pricing_engine import calculate_premium
+import json
+from pathlib import Path
+
+DEBUG_LOG_PATH = Path(__file__).resolve().parents[2] / "debug-f473cf.log"
+
+
+def _debug_log(hypothesis_id: str, message: str, data: dict, run_id: str = "login-runtime"):
+    # #region agent log
+    try:
+        payload = {
+            "sessionId": "f473cf",
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": "backend/routes/auth.py",
+            "message": message,
+            "data": data,
+            "timestamp": int(datetime.utcnow().timestamp() * 1000),
+        }
+        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
+    except Exception:
+        pass
+    # #endregion
 
 router = APIRouter()
 
@@ -79,9 +102,29 @@ async def register(req: WorkerRegistration):
 
 @router.post("/login", response_model=Token)
 async def login(req: LoginRequest):
+    # #region agent log
+    _debug_log("H6", "Login endpoint hit", {
+        "phone_length": len(req.phone or ""),
+        "pin_length": len(req.pin or ""),
+        "phone_is_digit": (req.phone or "").isdigit(),
+    })
+    # #endregion
     worker = await workers_collection.find_one({"phone": req.phone})
-    if not worker or not verify_password(req.pin, worker["pin_hash"]):
+    # #region agent log
+    _debug_log("H7", "Worker lookup finished", {"worker_found": bool(worker)})
+    # #endregion
+    password_ok = bool(worker) and verify_password(req.pin, worker["pin_hash"])
+    # #region agent log
+    _debug_log("H8", "PIN verification finished", {"password_ok": password_ok})
+    # #endregion
+    if not worker or not password_ok:
+        # #region agent log
+        _debug_log("H9", "Login rejected", {"reason": "invalid_phone_or_pin"})
+        # #endregion
         raise HTTPException(status_code=401, detail="Invalid phone or PIN")
-        
+
+    # #region agent log
+    _debug_log("H10", "Login accepted", {"worker_id_present": bool(worker.get("worker_id"))})
+    # #endregion
     access_token = create_access_token(data={"sub": worker["worker_id"]})
     return {"access_token": access_token, "token_type": "bearer", "worker_id": worker["worker_id"]}

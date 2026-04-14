@@ -1,79 +1,127 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../api/client';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api, { apiRequest, normalizeApiError } from '../api/client';
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 export default function Analytics() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await api.get('/analytics/worker');
-        setData(res.data);
-      } catch (err) {
-        if (err.response?.status === 401) navigate('/login');
-      } finally {
-        setLoading(false);
+  const loadAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiRequest(() => api.get('/analytics/worker'));
+      setData(res.data || {});
+    } catch (rawError) {
+      const err = normalizeApiError(rawError, 'Unable to fetch analytics.');
+      if (err.status === 401) {
+        navigate('/login');
+        return;
       }
-    };
-    fetchData();
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [navigate]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
+
+  const heatmapRows = useMemo(() => {
+    const items = data?.calendar_map || [];
+    return items.map((item) => {
+      const zoneLabel = item.disruption || 'Unknown event';
+      const level = /severe|heavy|extreme/i.test(zoneLabel) ? 'high' : 'medium';
+      return { ...item, zoneLabel, level };
+    });
+  }, [data]);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading analytics...</div>;
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white border border-red-200 rounded-xl p-6 max-w-lg w-full">
+          <h1 className="font-bold text-red-700 mb-2">Analytics unavailable</h1>
+          <p className="text-sm text-red-600 mb-4">{error}</p>
+          <button onClick={loadAnalytics} className="px-4 py-2 rounded-lg bg-[#1E3A5F] text-white">Retry</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#f8f9fc] min-h-screen pb-20">
-      <div className="bg-[#1E3A5F] px-6 pt-8 pb-16 text-white">
-        <div className="max-w-4xl mx-auto">
-          <button onClick={() => navigate(-1)} className="mb-4 text-blue-200 hover:text-white flex items-center gap-2">
-            <ArrowLeft className="w-5 h-5" /> Back
-          </button>
-          <h1 className="text-3xl font-bold">Your Risk Analytics</h1>
-        </div>
-      </div>
+      <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+        <button onClick={() => navigate(-1)} className="text-sm text-[#1E3A5F] hover:underline" aria-label="Go back">Back</button>
+        <h1 className="text-3xl font-bold text-[#1E3A5F]">Your Risk Analytics</h1>
 
-      <div className="max-w-4xl mx-auto px-6 -mt-8 space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100">
             <p className="text-gray-500 text-sm mb-1">Premiums (Month)</p>
-            <p className="text-2xl font-bold text-[#1E3A5F]">₹{data?.total_premium}</p>
+            <p className="text-2xl font-bold text-[#1E3A5F]">₹{data?.total_premium || 0}</p>
           </div>
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-right">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100">
             <p className="text-gray-500 text-sm mb-1">Payouts (Month)</p>
-            <p className="text-2xl font-bold text-[#22C55E]">₹{data?.total_payout}</p>
+            <p className="text-2xl font-bold text-[#22C55E]">₹{data?.total_payout || 0}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-2xl border border-gray-100">
           <h3 className="text-lg font-bold text-[#1E3A5F] mb-4">Risk Trend (Last 4 Weeks)</h3>
-          <div className="h-64">
+          <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data?.risk_trends}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{fill: '#6B7280'}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280'}} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                <Line type="monotone" dataKey="score" stroke="#FF6B35" strokeWidth={3} dot={{r: 4, fill: '#FF6B35'}} activeDot={{r: 6}} />
+              <LineChart data={data?.risk_trends || []} margin={{ left: 10, right: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" label={{ value: 'Week', position: 'insideBottom', offset: -6 }} />
+                <YAxis label={{ value: 'Risk score (%)', angle: -90, position: 'insideLeft' }} />
+                <Tooltip formatter={(value) => [`${value}%`, 'Risk Score']} />
+                <Legend verticalAlign="top" />
+                <Line type="monotone" dataKey="score" stroke="#FF6B35" strokeWidth={3} name="Risk score (%)" />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
-        
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-           <h3 className="text-lg font-bold text-[#1E3A5F] mb-4">Disruption Calendar Map</h3>
-           <p className="text-sm text-gray-500 mb-4">Total events in your city this month: <strong>{data?.disruptions_count}</strong></p>
-           <div className="space-y-3">
-              {data?.calendar_map?.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center p-3 bg-red-50 rounded-xl border border-red-100 text-red-600 font-medium text-sm">
-                   <span>{item.date}</span>
-                   <span>{item.disruption}</span>
+
+        <div className="bg-white p-6 rounded-2xl border border-gray-100">
+          <h3 className="text-lg font-bold text-[#1E3A5F] mb-4">Disruption Heatmap</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Total events in your city this month: <strong>{data?.disruptions_count || 0}</strong>
+          </p>
+          {!heatmapRows.length ? (
+            <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded-lg">No disruption events available.</p>
+          ) : (
+            <div className="space-y-2">
+              {heatmapRows.map((item, idx) => (
+                <div
+                  key={`${item.date}-${idx}`}
+                  className={`flex justify-between items-center p-3 rounded-xl border text-sm ${
+                    item.level === 'high' ? 'bg-red-50 border-red-100 text-red-700' : 'bg-yellow-50 border-yellow-100 text-yellow-800'
+                  }`}
+                >
+                  <span>{item.date} (Time Zone: IST)</span>
+                  <span>{item.zoneLabel}</span>
                 </div>
               ))}
-           </div>
+            </div>
+          )}
+          <p className="text-xs text-gray-500 mt-3">
+            Color scale: yellow = moderate event intensity, red = high event intensity.
+          </p>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../api/client';
+import api, { apiRequest, isDebugMode, normalizeApiError } from '../api/client';
 import {
   ShieldAlert, Users, TrendingUp, AlertOctagon, RefreshCw,
   PieChart, BarChart3, MapPin, Activity, DollarSign,
@@ -16,27 +16,29 @@ const COLORS = ['#1E3A5F', '#FF6B35', '#22C55E', '#FBBF24', '#EF4444', '#8B5CF6'
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
-  const [workers, setWorkers] = useState([]);
   const [claims, setClaims] = useState([]);
   const [triggerLog, setTriggerLog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState('overview'); // overview, fraud, analytics
   const [fraudData, setFraudData] = useState(null);
   const [deepAnalytics, setDeepAnalytics] = useState(null);
-  const [selectedClaim, setSelectedClaim] = useState(null);
+  const [selectedClaim] = useState(null);
+  const [error, setError] = useState(null);
+  const [runningTriggers, setRunningTriggers] = useState(false);
+  const [actingClaimId, setActingClaimId] = useState(null);
 
   const fetchAdminData = async () => {
     try {
-      const [analytics, w, c] = await Promise.all([
-        api.get('/analytics/admin'),
-        api.get('/admin/workers'),
-        api.get('/admin/claims')
+      setError(null);
+      const [analytics, c] = await Promise.all([
+        apiRequest(() => api.get('/analytics/admin')),
+        apiRequest(() => api.get('/admin/claims'))
       ]);
       setData(analytics.data);
-      setWorkers(w.data);
       setClaims(c.data);
     } catch (err) {
-      console.error(err);
+      const normalized = normalizeApiError(err, 'Failed to load admin dashboard');
+      setError(normalized.message);
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export default function AdminDashboard() {
 
   const fetchFraudData = async () => {
     try {
-      const res = await api.get('/admin/fraud-dashboard');
+      const res = await apiRequest(() => api.get('/admin/fraud-dashboard'));
       setFraudData(res.data);
     } catch (err) {
       console.error('Fraud data error:', err);
@@ -53,7 +55,7 @@ export default function AdminDashboard() {
 
   const fetchDeepAnalytics = async () => {
     try {
-      const res = await api.get('/admin/analytics/deep');
+      const res = await apiRequest(() => api.get('/admin/analytics/deep'));
       setDeepAnalytics(res.data);
     } catch (err) {
       console.error('Deep analytics error:', err);
@@ -67,18 +69,31 @@ export default function AdminDashboard() {
   }, []);
 
   const runTriggers = async () => {
-    const res = await api.post('/triggers/run-all');
-    setTriggerLog(res.data.logs.length ? res.data.logs : ["No new triggers fired."]);
-    fetchAdminData();
+    setRunningTriggers(true);
+    try {
+      if (isDebugMode()) console.log('[UI ACTION] run_triggers');
+      const res = await apiRequest(() => api.post('/triggers/run-all'), { retries: 0 });
+      setTriggerLog(res.data.logs.length ? res.data.logs : ['No new triggers fired.']);
+      fetchAdminData();
+    } catch (err) {
+      const normalized = normalizeApiError(err, 'Unable to run triggers');
+      setTriggerLog([normalized.message]);
+    } finally {
+      setRunningTriggers(false);
+    }
   };
 
   const handleClaimAction = async (claimId, action) => {
     try {
-      await api.post(`/admin/claims/${claimId}/review?action=${action}`);
+      if (isDebugMode()) console.log('[UI ACTION] claim_action', { claimId, action });
+      setActingClaimId(claimId);
+      await apiRequest(() => api.post(`/admin/claims/${claimId}/review?action=${action}`), { retries: 0 });
       await fetchAdminData();
       await fetchFraudData();
     } catch (err) {
-      console.error('Claim action error:', err);
+      console.error('Claim action error:', normalizeApiError(err).message);
+    } finally {
+      setActingClaimId(null);
     }
   };
 
@@ -259,6 +274,7 @@ export default function AdminDashboard() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleClaimAction(claim.claim_id, 'reviewed')}
+                          disabled={actingClaimId === claim.claim_id}
                           className="p-1 hover:bg-blue-100 rounded text-blue-600"
                           title="Mark as Reviewed"
                         >
@@ -266,6 +282,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => handleClaimAction(claim.claim_id, 'escalated')}
+                          disabled={actingClaimId === claim.claim_id}
                           className="p-1 hover:bg-orange-100 rounded text-orange-600"
                           title="Escalate"
                         >
@@ -273,6 +290,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => handleClaimAction(claim.claim_id, 'approved')}
+                          disabled={actingClaimId === claim.claim_id}
                           className="p-1 hover:bg-green-100 rounded text-green-600"
                           title="Approve"
                         >
@@ -280,6 +298,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => handleClaimAction(claim.claim_id, 'rejected')}
+                          disabled={actingClaimId === claim.claim_id}
                           className="p-1 hover:bg-red-100 rounded text-red-600"
                           title="Reject"
                         >
@@ -533,10 +552,15 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-[#1E3A5F]">GigShield Command Center</h1>
-          <button onClick={runTriggers} className="bg-[#FF6B35] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#FF6B35]/90 transition">
+          <button
+            onClick={runTriggers}
+            disabled={runningTriggers}
+            className="bg-[#FF6B35] text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-[#FF6B35]/90 transition disabled:opacity-60"
+          >
              <RefreshCw className="w-4 h-4" /> Run Triggers Now
           </button>
         </div>
+        {error && <div className="text-sm bg-red-50 text-red-700 border border-red-200 rounded-lg p-3">{error}</div>}
 
         {/* Quick Navigation */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
