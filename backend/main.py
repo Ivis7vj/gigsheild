@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import create_indexes
 from services.scheduler import start_scheduler
 from routes import auth, workers, policy, claims, triggers, analytics, admin, mock
+from services.payment_service import upi_router
 
 app = FastAPI(title="GigShield API")
 
@@ -56,6 +57,7 @@ app.include_router(triggers.router, prefix="/api/triggers", tags=["triggers"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(mock.router, prefix="/api/mock/civic-events", tags=["mock"])
+app.include_router(upi_router, prefix="/api/payments/upi", tags=["payments"])
 
 
 @app.get("/")

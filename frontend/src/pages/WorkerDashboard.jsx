@@ -5,7 +5,8 @@ import {
   Power, BarChart3, AlertTriangle, CheckCircle, Clock, LogOut,
   User, Activity, MapPin, Wallet, ShieldCheck, Home, Settings,
   Thermometer, Wind, TrendingUp, ChevronRight, Zap, Target,
-  Layers, Database, Cpu, Globe, Rocket
+  Layers, Database, Cpu, Globe, Rocket, CloudRain, Sun, Cloud,
+  IndianRupee, Award, Bell
 } from 'lucide-react';
 
 export default function WorkerDashboard() {
@@ -17,20 +18,38 @@ export default function WorkerDashboard() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [trustScore, setTrustScore] = useState(0);
+  const [weatherAlert, setWeatherAlert] = useState(null);
+  const [earningsProtected, setEarningsProtected] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [profileRes, policyRes, claimsRes, riskRes] = await Promise.all([
+        const [profileRes, policyRes, claimsRes, riskRes, fraudRes] = await Promise.all([
           api.get('/workers/profile'),
           api.get('/policy/current'),
           api.get('/claims/my-claims'),
-          api.get('/analytics/risk-insights')
+          api.get('/analytics/risk-insights'),
+          api.get('/analytics/worker-trust')
         ]);
         setProfile(profileRes.data);
         setPolicy(policyRes.data);
         setClaims(claimsRes.data);
         setRiskData(riskRes.data);
+
+        // Calculate trust score from fraud data
+        if (fraudRes.data) {
+          setTrustScore(fraudRes.data.trust_score || 75);
+        }
+
+        // Calculate earnings protected
+        const totalPaid = claimsRes.data
+          .filter(c => c.status === 'Paid')
+          .reduce((acc, c) => acc + (c.payout_amount || 0), 0);
+        setEarningsProtected(totalPaid);
+
+        // Check for weather alerts
+        await checkWeatherAlert();
       } catch (err) {
         if (err.response?.status === 401) navigate('/login');
       } finally {
@@ -39,6 +58,22 @@ export default function WorkerDashboard() {
     };
     fetchData();
   }, [navigate]);
+
+  const checkWeatherAlert = async () => {
+    try {
+      const forecast = await api.get('/triggers/forecast');
+      if (forecast.data?.high_risk_today) {
+        setWeatherAlert({
+          type: forecast.data.trigger_type || 'Heavy Rainfall',
+          severity: forecast.data.severity || 'high',
+          message: `${forecast.data.trigger_type || 'Heavy rain'} expected in your zone today. Your coverage is active.`
+        });
+      }
+    } catch (err) {
+      // Silently fail - weather alert is optional
+      console.log('Weather alert not available');
+    }
+  };
 
   const togglePolicy = async () => {
     try {
@@ -59,6 +94,28 @@ export default function WorkerDashboard() {
 
   const renderDashboard = () => (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
+      {/* Weather Alert Banner */}
+      {weatherAlert && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 to-cyan-500 p-6 shadow-2xl animate-in slide-in-from-top-4 duration-500">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <CloudRain size={120} className="text-white" />
+          </div>
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+              <Bell size={24} className="text-white animate-pulse" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-black text-white/80 uppercase tracking-widest">Weather Alert</p>
+              <p className="text-lg font-bold text-white mt-1">{weatherAlert.message}</p>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/20 rounded-xl backdrop-blur-sm">
+              <ShieldCheck size={16} className="text-green-300" />
+              <span className="text-xs font-bold text-white">Coverage Active</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Hero Section */}
       <div className="relative group overflow-visible">
         <div className="absolute inset-0 bg-gradient-to-r from-[#FF4D00]/20 to-[#00FF94]/20 blur-[100px] opacity-40 group-hover:opacity-70 transition duration-1000"></div>
@@ -109,7 +166,58 @@ export default function WorkerDashboard() {
       </div>
 
       {/* High-Contrast Widgets Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Trust Score Card */}
+        <div className="glass-card rounded-[40px] p-6 flex flex-col gap-4 relative overflow-hidden group border-t-2 border-t-purple-500/20">
+          <div className="flex justify-between items-center">
+            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <Award size={14} className="text-purple-400" /> Trust Score
+            </h3>
+            <Award size={16} className="text-purple-400/40 group-hover:rotate-12 transition-transform" />
+          </div>
+          <div className="flex-1 flex flex-col justify-center items-center gap-3">
+            <div className="relative">
+              <svg className="w-28 h-28 -rotate-90">
+                <circle cx="56" cy="56" r="48" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+                <circle
+                  cx="56" cy="56" r="48" fill="none"
+                  stroke="#A855F8" strokeWidth="10"
+                  strokeDasharray="301" strokeDashoffset={301 - (301 * trustScore) / 100}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-2xl font-black text-white">{trustScore}</span>
+                <span className="text-[6px] font-black text-gray-500 uppercase">/100</span>
+              </div>
+            </div>
+            <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest text-center">
+              {trustScore >= 80 ? 'Excellent Trust' : trustScore >= 60 ? 'Good Standing' : 'Needs Review'}
+            </p>
+          </div>
+        </div>
+
+        {/* Earnings Protected */}
+        <div className="glass-card rounded-[40px] p-6 flex flex-col gap-4 relative overflow-hidden group border-t-2 border-t-green-500/20">
+          <div className="flex justify-between items-center">
+            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+              <IndianRupee size={14} className="text-green-400" /> Earnings Protected
+            </h3>
+            <Wallet size={16} className="text-green-400/40 group-hover:scale-110 transition-transform" />
+          </div>
+          <div className="flex-1 flex flex-col justify-center gap-2">
+            <p className="text-3xl font-black text-white tracking-tighter">₹{earningsProtected.toFixed(0)}</p>
+            <p className="text-[7px] font-black text-gray-500 uppercase tracking-widest">This Month</p>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-emerald-400 h-full rounded-full" style={{ width: '65%' }}></div>
+              </div>
+              <span className="text-[7px] font-black text-green-400">65%</span>
+            </div>
+          </div>
+        </div>
+
         {/* Dynamic Risk Gauge */}
         <div className="glass-card rounded-[40px] p-8 flex flex-col gap-6 relative overflow-hidden group border-t-2 border-t-[#00FF94]/20">
           <div className="flex justify-between items-center relative z-10">

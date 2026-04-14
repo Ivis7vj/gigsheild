@@ -30,6 +30,7 @@ frontend/yarn-error.log*
 
 # Root level files to ignore
 backup.txt
+prompt.txt
 overview.txt
 test.log
 tests_run_log.txt

@@ -83,7 +83,7 @@ async def admin_analytics():
 @router.get("/risk-insights")
 async def risk_insights(worker: dict = Depends(get_current_worker)):
     city = worker.get("city", "Mumbai")
-    
+
     # Mock dynamic risk pulse data based on city
     # In a real app, this would query a weather/traffic API
     risk_pulse = {
@@ -95,7 +95,7 @@ async def risk_insights(worker: dict = Depends(get_current_worker)):
         ],
         "insight": "High humidity today may slightly affect rider performance."
     }
-    
+
     # 7-day projection mock
     projections = [
         {"day": "Mon", "risk": 20},
@@ -106,7 +106,7 @@ async def risk_insights(worker: dict = Depends(get_current_worker)):
         {"day": "Sat", "risk": 50},
         {"day": "Sun", "risk": 25}
     ]
-    
+
     # Safety Score breakdown
     safety_score = {
         "current": 850,
@@ -115,9 +115,62 @@ async def risk_insights(worker: dict = Depends(get_current_worker)):
         "next_threshold": 900,
         "weekly_change": 15
     }
-    
+
     return {
         "risk_pulse": risk_pulse,
         "projections": projections,
         "safety_score": safety_score
+    }
+
+@router.get("/worker-trust")
+async def worker_trust_score(worker: dict = Depends(get_current_worker)):
+    """
+    Calculate worker's trust score based on:
+    - No fraud flags on claims
+    - Consistent check-ins
+    - Claim history patterns
+    - Account age
+    """
+    from datetime import timedelta
+
+    worker_id = worker["worker_id"]
+
+    # Get all claims for this worker
+    all_claims = await claims_collection.find({"worker_id": worker_id}).to_list(100)
+
+    # Base score starts at 75
+    base_score = 75
+
+    # Bonus for no fraud flags
+    clean_claims = sum(1 for c in all_claims if c.get("fraud_score", 0) < 30)
+    if len(all_claims) > 0:
+        clean_ratio = clean_claims / len(all_claims)
+        base_score += int(clean_ratio * 15)  # Up to +15 for clean claims
+
+    # Bonus for account age (up to +5)
+    created_at = worker.get("created_at")
+    if created_at:
+        account_age_days = (datetime.utcnow() - created_at).days
+        base_score += min(account_age_days // 30, 5)  # +1 per month, max +5
+
+    # Penalty for high fraud scores
+    high_risk_claims = sum(1 for c in all_claims if c.get("fraud_score", 0) > 60)
+    base_score -= high_risk_claims * 5  # -5 per high-risk claim
+
+    # Bonus for consistent check-ins (mock - would be real in production)
+    base_score += 5  # Consistent check-in bonus
+
+    # Clamp to 0-100
+    trust_score = max(0, min(100, base_score))
+
+    return {
+        "trust_score": trust_score,
+        "clean_claims": clean_claims,
+        "total_claims": len(all_claims),
+        "factors": {
+            "clean_claims_bonus": int(clean_ratio * 15) if len(all_claims) > 0 else 0,
+            "account_age_bonus": min(account_age_days // 30, 5) if created_at else 0,
+            "high_risk_penalty": high_risk_claims * 5,
+            "consistency_bonus": 5
+        }
     }

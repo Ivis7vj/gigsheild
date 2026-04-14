@@ -15,10 +15,10 @@ export const translations = {
     // Home page
     welcome: 'Welcome to GigShield',
     tagline: 'Weather the storm. Protect your earning score.',
-    heroDescription: 'The first rule-based parametric insurance platform for India\'s gig economy workers. Get automatically compensated for lost hours due to severe weather, extreme pollution, or civic disruptions.',
+    heroDescription: 'The first rule-based parametric insurance platform for India\'s gig economy workers. Get automatically compensated for lost hours due to severe weather, extreme pollution, or civic disruptions. Powered by automated detection systems, not AI.',
     startProtected: 'Start Pre-registering',
-    zeroTouchClaims: 'Zero-Touch Claims',
-    zeroTouchDescription: 'We monitor weather APIs 24/7. When triggers fire, payouts are processed automatically to your UPI within minutes. No manual filing needed.',
+    zeroTouchClaims: 'Automated Claims',
+    zeroTouchDescription: 'We monitor weather APIs 24/7. When triggers fire, payouts are processed automatically to your UPI within minutes. No manual filing needed. Our rule-based engine ensures fair, consistent decisions.',
     dynamicPricing: 'Dynamic Pricing',
     dynamicPricingDescription: 'Premiums adjust weekly based on automated risk assessment rules. Earn safe-zone discounts and high-activity loyalty bonuses tailored just for you.',
     broadCoverage: 'Broad Threat Coverage',
