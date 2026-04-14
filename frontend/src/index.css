@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-blue: #0A192F;
+  --color-brand-orange: #FF4D00;
+  --color-brand-green: #00FF94;
+  --color-glass-white: rgba(255, 255, 255, 0.05);
+  --color-glass-blue: rgba(10, 25, 47, 0.8);
+  --shadow-premium: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
+  --shadow-glow-orange: 0 0 30px rgba(255, 77, 0, 0.4);
+  --shadow-glow-green: 0 0 30px rgba(0, 255, 148, 0.2);
+}
+
+:root {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color-scheme: dark;
+  color: #E2E8F0;
+  background-color: #050B14;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.glass-nav {
+  background: var(--color-glass-blue);
+  backdrop-filter: blur(24px) saturate(200%);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-premium);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 77, 0, 0.3);
+  transform: translateY(-5px) scale(1.01);
+}
+
+.iridescent-border {
+  position: relative;
+  background: linear-gradient(#0A192F, #0A192F) padding-box,
+    linear-gradient(45deg, #FF4D00, #00FF94, #00C2FF, #FF4D00) border-box;
+  border: 1px solid transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 77, 0, 0.3);
+  border-radius: 10px;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 77, 0, 0.2);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(255, 77, 0, 0.4);
+  }
+
+  100% {
+    box-shadow: 0 0 20px rgba(255, 77, 0, 0.2);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #050B14;
+}
+
+#root {
+  width: 100%;
+}
