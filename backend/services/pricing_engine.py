@@ -2,6 +2,7 @@ import os
 import httpx
 from datetime import datetime
 import json
+from services.ml_service import calculate_risk_score
 
 OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")
 
@@ -20,6 +21,14 @@ CITY_COORDS = {
     "Bengaluru": {"lat": 12.9716, "lon": 77.5946},
     "Chennai": {"lat": 13.0827, "lon": 80.2707},
     "Hyderabad": {"lat": 17.3850, "lon": 78.4867},
+}
+
+PINCODE_WEATHER_RISK = {
+    "560034": 78,
+    "560001": 62,
+    "560027": 55,
+    "400001": 66,
+    "600001": 59,
 }
 
 async def fetch_weather_risk(city: str) -> dict:
@@ -98,6 +107,28 @@ async def calculate_premium(worker: dict) -> dict:
     base_premium = earnings * base_rate
     current_premium = base_premium
     factors = []
+    zone_risk = ZONE_RISK_TABLE.get(city, {}).get(zone, "Medium")
+
+    # 0.5 ML Risk scoring (production path)
+    pincode = worker.get("pincode")
+    weather_risk_score = PINCODE_WEATHER_RISK.get(pincode, 45)
+    ml_payload = {
+        "worker_age": worker.get("age", 30),
+        "delivery_distance": worker.get("avg_delivery_distance_km", 6),
+        "weather_risk_score": weather_risk_score,
+        "claim_frequency_past_30_days": claims_count_30d,
+        "average_earnings_per_week": earnings,
+        "zone_safety_rating": 100 if zone_risk == "Safe" else 40 if zone_risk == "Flood-prone" else 65,
+    }
+    ml_risk = calculate_risk_score(ml_payload)
+    ml_impact_factor = max(-0.06, min(0.22, (ml_risk["score"] - 50) / 250))
+    ml_impact = base_premium * ml_impact_factor
+    current_premium += ml_impact
+    factors.append({
+        "name": f"ML Risk Adjustment ({ml_risk['score']}/100)",
+        "impact": round(ml_impact, 2),
+        "type": "addition" if ml_impact > 0 else "subtraction"
+    })
     
     # 1. Weather
     weather_data = await fetch_weather_risk(city)
@@ -112,7 +143,6 @@ async def calculate_premium(worker: dict) -> dict:
     factors.append({"name": aqi_data["name"], "impact": round(impact, 2), "type": "addition" if impact > 0 else "subtraction"})
     
     # 3. Zone Risk
-    zone_risk = ZONE_RISK_TABLE.get(city, {}).get(zone, "Medium")
     if zone_risk == "Flood-prone":
         impact = base_premium * 0.12
         current_premium += impact
@@ -170,5 +200,7 @@ async def calculate_premium(worker: dict) -> dict:
     return {
         "base_premium": round(base_premium, 2),
         "final_premium": final_premium,
-        "factors": factors
+        "factors": factors,
+        "ml_risk_score": ml_risk["score"],
+        "ml_reasoning": ml_risk["reasoning"],
     }

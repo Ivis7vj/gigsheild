@@ -1,10 +1,10 @@
-# GigShield - Rule-Based Parametric Insurance for Gig Workers
+# GigShield - Phase 3 ML-Enhanced Parametric Insurance Platform
 
 ![GigShield](https://img.shields.io/badge/GigShield-Parametric_Insurance-FF6B35?style=for-the-badge)
 
 **Weather the storm. Protect your earning score.**
 
-GigShield is a comprehensive rule-based parametric insurance platform designed specifically for India's gig economy workers (delivery partners, ride-share drivers). Unlike traditional insurance with lengthy claim processes, GigShield uses real-time data triggers and automated detection systems to provide instant protection payouts when workers are most vulnerable.
+GigShield is a parametric insurance platform for India's gig economy workers (delivery and e-commerce partners). Phase 3 adds ML-driven risk/fraud/approval scoring, an AI claim assistant, warm-light accessibility-first dashboards, and payout orchestration for faster claim resolution.
 
 ---
 
@@ -15,8 +15,8 @@ GigShield is a comprehensive rule-based parametric insurance platform designed s
 - **Instant Payouts**: When triggers fire, payouts are processed automatically to UPI within minutes
 - **No Manual Filing**: Rule-based engine ensures fair, consistent decisions without paperwork
 
-### 2. Advanced Fraud Detection System
-Multi-signal automated fraud detection protecting the platform from abuse:
+### 2. ML-Enhanced Fraud Detection System
+Multi-signal fraud scoring with model-backed risk confidence:
 
 - **GPS Spoofing Detection**
   - Impossible travel speed detection (e.g., 50km in 2 minutes)
@@ -45,21 +45,21 @@ Complete claim-to-payout flow with simulated payment disbursement:
   - Claim Submitted → Parametric Trigger Verified → Claim Approved → Payout Initiated → Payout Completed
 - **Worker Notifications**: WhatsApp-style payout confirmation with UTR number
 
-### 4. Dynamic Pricing Engine
-- **Actuarial Risk Assessment**: Premiums adjust based on automated risk rules
+### 4. Dynamic Pricing Engine (ML-Enhanced)
+- **Risk Scoring Model**: Premiums now include ML risk score (0-100) from worker + zone + claims signals
 - **Experience Discounts**: Loyalty bonuses for experienced workers
 - **Safe-Zone Discounts**: Lower premiums for low-risk zones
 - **Weekly Policy Renewals**: Flexible coverage periods
 
-### 5. Worker Dashboard
-High-density interface showing:
+### 5. Worker Dashboard (Warm Light UI)
+Accessibility-first interface showing:
 - **Earnings Protected**: Total payout received this month
 - **Active Coverage**: Current policy status and covered events
 - **Trust Score**: Gamified score (0-100) based on honest claims and consistent check-ins
 - **Weather Alerts**: Proactive banners for expected disruptions
 - **Claim History**: Last 5 claims with status and payout amounts
 
-### 6. Admin/Insurer Analytics Dashboard
+### 6. Admin/Insurer Analytics Dashboard (Professional Light UI)
 Comprehensive portfolio analytics:
 - **Loss Ratio Widget**: (Total Payouts / Total Premiums) × 100
 - **Predictive Analytics**: Next week's likely claims based on historical patterns + weather forecast
@@ -72,7 +72,13 @@ Comprehensive portfolio analytics:
 - **Zone-Specific Triggers**: Weather triggers based on worker's specific delivery zone
 - **Neighborhood Mapping**: Fine-grained geographic risk assessment
 
-### 8. Multi-Language Support (Inclusive Design)
+### 8. GigShield Assistant (AI Agent)
+- **Claim Advisor**: Guides workers on eligibility and next claim steps
+- **Fraud Explainer**: Converts fraud signals to plain language for admins
+- **Premium Analyzer**: Explains premium breakdown and savings tips
+- **Weather Verifier**: Contextual weather-based verification messaging
+
+### 9. Multi-Language Support (Inclusive Design)
 - **Tamil (தமிழ்)**: Full UI translation for Tamil-speaking workers
 - **Hindi (हिंदी)**: Full UI translation for Hindi-speaking workers
 - **Accessibility**: ARIA labels, color contrast compliance, low-end device optimization
@@ -87,7 +93,8 @@ Comprehensive portfolio analytics:
 | **Backend** | FastAPI (Python), APScheduler |
 | **Database** | MongoDB (Async) |
 | **Authentication** | JWT + PIN-based auth, bcrypt |
-| **External APIs** | OpenWeatherMap, Open-Meteo Historical API |
+| **ML/AI** | scikit-learn models (risk/fraud/approval), Groq-backed assistant (with fallback) |
+| **External APIs** | OpenWeatherMap, Open-Meteo Historical API, Groq API |
 | **Payment Gateway** | Razorpay (Test Mode) + UPI Simulator |
 | **Styling** | Vanilla CSS (Glassmorphism 2.0, Iridescent UI) |
 
@@ -171,9 +178,25 @@ GigShield/
 
 ---
 
-## Fraud Detection Scoring
+## ML Service Endpoints
 
-The fraud engine uses a weighted scoring model:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/ml/calculate-risk-score` | Predict worker risk score + top 3 factors |
+| POST | `/api/ml/fraud-detection` | Predict fraud risk score + confidence |
+| POST | `/api/ml/predict-approval` | Predict claim approval probability |
+
+## AI Agent Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/ai-agent/chat` | Worker/admin conversational assistant |
+| POST | `/api/ai-agent/explain-fraud` | Plain-language fraud explanation by claim |
+| POST | `/api/ai-agent/explain-premium` | Premium reasoning and savings tips |
+
+## Fraud Scoring
+
+Fraud results combine deterministic signals and ML probability confidence:
 
 ```
 Final Score = (GPS Score × 0.35) + (Weather Score × 0.30) + 
@@ -243,9 +266,9 @@ Standard parametric policy exclusions:
 
 ## Demo Credentials
 
-**Worker Login:**
+**Worker Login (demo seed):**
 - Phone: `9876543210`
-- PIN: `1234`
+- PIN: `5678`
 
 **Admin Dashboard:**
 - URL: `/admin` (no auth required for demo)
@@ -254,11 +277,11 @@ Standard parametric policy exclusions:
 
 ## Key Innovations
 
-1. **Parametric Triggers**: No claims adjuster needed - payouts fire automatically when data thresholds are met
-2. **Rule-Based Transparency**: Every decision is explainable via deterministic rules (no black-box AI)
-3. **UPI Integration**: Direct-to-wallet payouts eliminate payment friction
-4. **Fraud Prevention**: Multi-layer detection without ML complexity
-5. **Hyper-Local Precision**: Pincode-level triggers, not city-wide averages
+1. **ML in Production Path**: Risk pricing, fraud scoring, and claim approval probability are model-backed.
+2. **Hyper-Local Precision**: Pincode-level trigger/risk handling, not city-wide averages.
+3. **AI Assistant Layer**: Worker/admin explainability and guidance with fallback-safe responses.
+4. **Zero-Touch Claim Flow**: Trigger verification + fraud checks + payout orchestration.
+5. **Inclusive Warm-Light UX**: Mobile-first, high readability for semi-literate worker audiences.
 
 ---
 

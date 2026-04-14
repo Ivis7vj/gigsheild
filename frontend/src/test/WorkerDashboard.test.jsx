@@ -21,20 +21,17 @@ describe('WorkerDashboard', () => {
     mockPost.mockReset();
   });
 
-  it('renders data from backend and toggles tab', async () => {
+  it('renders data from backend and key cards', async () => {
     mockGet
       .mockResolvedValueOnce({ data: { full_name: 'Ramesh Kumar', worker_id: 'WRK1', city: 'Mumbai', zone: 'Zone 1' } })
       .mockResolvedValueOnce({ data: { status: 'Active' } })
       .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({ data: { risk_pulse: { city_score: 20, zones: [] } } })
       .mockResolvedValueOnce({ data: { trust_score: 88, clean_claims: 3 } })
       .mockResolvedValueOnce({ data: { high_risk_today: false } });
+    mockPost.mockResolvedValueOnce({ data: { score: 40, reasoning: ['weather_risk_score: impact 10'] } });
 
     render(<MemoryRouter><WorkerDashboard /></MemoryRouter>);
-    expect(await screen.findByText('Ramesh Kumar')).toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Open Analytics' }));
-    expect(screen.getByText('Risk analytics')).toBeInTheDocument();
+    expect(await screen.findByText(/Protected this month/i)).toBeInTheDocument();
   });
 
   it('shows error UI when backend fails', async () => {
@@ -49,14 +46,15 @@ describe('WorkerDashboard', () => {
       .mockResolvedValueOnce({ data: { full_name: 'Ramesh Kumar' } })
       .mockResolvedValueOnce({ data: { status: 'Inactive' } })
       .mockResolvedValueOnce({ data: [] })
-      .mockResolvedValueOnce({ data: {} })
       .mockResolvedValueOnce({ data: { trust_score: 80 } })
       .mockResolvedValueOnce({ data: { high_risk_today: false } });
-    mockPost.mockResolvedValueOnce({ data: { status: 'Active' } });
+    mockPost
+      .mockResolvedValueOnce({ data: { score: 44, reasoning: ['claim_frequency_past_30_days: impact 8'] } })
+      .mockResolvedValueOnce({ data: { status: 'Active' } });
 
     render(<MemoryRouter><WorkerDashboard /></MemoryRouter>);
-    await screen.findByText('Ramesh Kumar');
-    await userEvent.click(screen.getByRole('button', { name: /Activate policy/i }));
+    await screen.findByText(/Protected this month/i);
+    await userEvent.click(screen.getByRole('button', { name: /Toggle policy status/i }));
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/policy/toggle'));
   });
 });

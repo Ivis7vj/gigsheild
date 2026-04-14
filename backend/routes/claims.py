@@ -6,6 +6,7 @@ from typing import List
 from datetime import datetime
 from services.fraud_engine import calculate_fraud_score
 from services.payment_service import process_payout
+from services.ml_service import detect_fraud, predict_approval
 import asyncio
 
 router = APIRouter()
@@ -110,6 +111,24 @@ async def submit_claim_with_fraud_check(claim_data: dict, worker: dict = Depends
         claim_timestamp=datetime.utcnow()
     )
 
+    ml_fraud = detect_fraud({
+        "gps_anomaly_score": fraud_result.get("gps_fraud_score", 0),
+        "weather_verification_mismatch": 1 if fraud_result.get("weather_verification") == "MISMATCH" else 0,
+        "claim_regularity_flag": 1 if fraud_result.get("behavioral_risk") == "HIGH" else 0,
+        "payout_amount_anomaly": 1 if claim_data.get("payout_amount", 0) > 5000 else 0,
+        "claim_frequency_burst": 1 if worker.get("claims_count_30d", 0) >= 3 else 0,
+    })
+
+    ml_approval = predict_approval({
+        "worker_trust_score": worker.get("risk_score", 50),
+        "claim_amount": claim_data.get("payout_amount", 0),
+        "weather_verification_status": 1 if fraud_result.get("weather_verification") == "VERIFIED" else 0,
+        "gps_validation_status": 1 if fraud_result.get("gps_fraud_score", 0) < 40 else 0,
+    })
+
+    requires_manual_review = ml_fraud["score"] > 75
+    auto_approve = ml_fraud["score"] < 25
+
     # Create claim record
     claim = {
         "claim_id": claim_id,
@@ -118,14 +137,20 @@ async def submit_claim_with_fraud_check(claim_data: dict, worker: dict = Depends
         "event_name": claim_data.get("event_name", trigger_type),
         "triggered_at": datetime.utcnow(),
         "payout_amount": claim_data.get("payout_amount", 0),
-        "fraud_score": fraud_result["score"],
+        "fraud_score": max(fraud_result["score"], int(ml_fraud["score"])),
         "fraud_factors": fraud_result["factors"],
-        "status": fraud_result["status"],
+        "status": "Review" if requires_manual_review else ("Approved" if auto_approve else fraud_result["status"]),
         "gps_lat": gps_lat,
         "gps_lon": gps_lon,
         "gps_fraud_score": fraud_result.get("gps_fraud_score", 0),
         "weather_verification_result": fraud_result.get("weather_verification", "N/A"),
         "behavioral_risk": fraud_result.get("behavioral_risk", "LOW"),
+        "ml_fraud_risk_score": ml_fraud["score"],
+        "ml_fraud_confidence": ml_fraud["confidence"],
+        "ml_fraud_reasoning": ml_fraud["reasoning"],
+        "ml_approval_probability": ml_approval["score"],
+        "ml_approval_reasoning": ml_approval["reasoning"],
+        "requires_manual_review": requires_manual_review,
         "payout_status": None,
         "upi_id": worker.get("upi_id")
     }
@@ -137,5 +162,9 @@ async def submit_claim_with_fraud_check(claim_data: dict, worker: dict = Depends
         "claim_id": claim_id,
         "fraud_score": fraud_result["score"],
         "claim_status": fraud_result["status"],
-        "fraud_factors": fraud_result["factors"]
+        "fraud_factors": fraud_result["factors"],
+        "ml_fraud_risk_score": ml_fraud["score"],
+        "ml_approval_probability": ml_approval["score"],
+        "requires_manual_review": requires_manual_review,
+        "auto_approved": auto_approve,
     }

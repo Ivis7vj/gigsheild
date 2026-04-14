@@ -15,6 +15,9 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7695/ingest/92344bf6-a0bf-478b-ad15-5d0e984edfef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f473cf'},body:JSON.stringify({sessionId:'f473cf',runId:'dashboard-unreachable',hypothesisId:'H1',location:'frontend/src/api/client.js:request',message:'Outgoing API request',data:{baseURL:config.baseURL,url:config.url,method:config.method},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -37,6 +40,9 @@ api.interceptors.request.use(
 
 api.interceptors.response.use(
   (response) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7695/ingest/92344bf6-a0bf-478b-ad15-5d0e984edfef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f473cf'},body:JSON.stringify({sessionId:'f473cf',runId:'dashboard-unreachable',hypothesisId:'H2',location:'frontend/src/api/client.js:response',message:'API response received',data:{url:response.config?.url,status:response.status},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (isDebugMode()) {
       console.log('[API RESPONSE]', {
         url: response.config?.url,
@@ -47,6 +53,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7695/ingest/92344bf6-a0bf-478b-ad15-5d0e984edfef',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'f473cf'},body:JSON.stringify({sessionId:'f473cf',runId:'dashboard-unreachable',hypothesisId:'H3',location:'frontend/src/api/client.js:error',message:'API response error',data:{url:error.config?.url,status:error.response?.status||null,message:error.message,hasResponse:Boolean(error.response)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (isDebugMode()) {
       console.error('[API ERROR]', {
         url: error.config?.url,

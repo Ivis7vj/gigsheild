@@ -2,6 +2,9 @@
 .DS_Store
 *.log
 *.tmp
+*.txt
+*.txt
+*.ndjson
 
 # Backend (Python)
 **/__pycache__/
@@ -36,4 +39,10 @@ overview.txt
 test.log
 tests_run_log.txt
 .gemini/
+docs/
+debug-f473cf.log
+PROJECT_STATUS_REPORT.txt
+
+# ML artifacts (generated from training script)
+backend/ml_models/*.pkl
 

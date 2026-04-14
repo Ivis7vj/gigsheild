@@ -40,6 +40,38 @@ class LoginRequest(BaseModel):
     phone: str
     pin: str
 
+
+class MLRiskRequest(BaseModel):
+    worker_age: float = 30
+    delivery_distance: float = 6
+    weather_risk_score: float = 30
+    claim_frequency_past_30_days: float = 0
+    average_earnings_per_week: float = 4500
+    zone_safety_rating: float = 70
+    pincode: Optional[str] = None
+
+
+class MLFraudRequest(BaseModel):
+    gps_anomaly_score: float
+    weather_verification_mismatch: float
+    claim_regularity_flag: float
+    payout_amount_anomaly: float
+    claim_frequency_burst: float
+
+
+class MLApprovalRequest(BaseModel):
+    worker_trust_score: float
+    claim_amount: float
+    weather_verification_status: float
+    gps_validation_status: float
+
+
+class MLResponse(BaseModel):
+    score: float
+    confidence: float
+    reasoning: List[str]
+    risk_level: Optional[str] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -99,6 +131,12 @@ class Claim(BaseModel):
     payout_utr: str = None  # Unique Transaction Reference for UPI payouts
     payout_time: datetime = None
     gateway_response: dict = None
+    ml_fraud_risk_score: float = 0
+    ml_fraud_confidence: float = 0
+    ml_fraud_reasoning: List[str] = []
+    ml_approval_probability: float = 0
+    ml_approval_reasoning: List[str] = []
+    requires_manual_review: bool = False
 
 # --- Missed Disruption Models ---
 class MissedDisruptionReport(BaseModel):

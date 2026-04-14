@@ -1,15 +1,36 @@
 import os
 import uvicorn
 import asyncio
+import json
+import time
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
 
 from database import create_indexes
 from services.scheduler import start_scheduler
-from routes import auth, workers, policy, claims, triggers, analytics, admin, mock
+from routes import auth, workers, policy, claims, triggers, analytics, admin, mock, ml, ai_agent
 from services.payment_service import upi_router
 
 app = FastAPI(title="GigShield API")
+
+def _debug_log(hypothesis_id: str, message: str, data: dict, run_id: str = "dashboard-unreachable"):
+    # #region agent log
+    try:
+        payload = {
+            "sessionId": "f473cf",
+            "runId": run_id,
+            "hypothesisId": hypothesis_id,
+            "location": "backend/main.py",
+            "message": message,
+            "data": data,
+            "timestamp": int(time.time() * 1000),
+        }
+        with open("debug-f473cf.log", "a", encoding="utf-8") as f:
+            f.write(json.dumps(payload) + "\n")
+    except Exception:
+        pass
+    # #endregion
 
 # CORS (restrict in production)
 app.add_middleware(
@@ -19,6 +40,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def debug_request_middleware(request: Request, call_next):
+    # #region agent log
+    _debug_log("H5", "Backend request received", {"path": request.url.path, "method": request.method})
+    # #endregion
+    response = await call_next(request)
+    return response
 
 # ✅ Safe startup
 @app.on_event("startup")
@@ -58,6 +87,8 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"]
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(mock.router, prefix="/api/mock/civic-events", tags=["mock"])
 app.include_router(upi_router, prefix="/api/payments/upi", tags=["payments"])
+app.include_router(ml.router, prefix="/api/ml", tags=["ml"])
+app.include_router(ai_agent.router, prefix="/api/ai-agent", tags=["ai-agent"])
 
 
 @app.get("/")

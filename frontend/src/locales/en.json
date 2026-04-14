@@ -1,0 +1,11 @@
+{
+  "appName": "GigShield",
+  "protectedThisMonth": "Protected this month",
+  "coverageActive": "Coverage Active",
+  "coverageInactive": "Coverage Inactive",
+  "claimsFiled": "Claims Filed",
+  "approved": "Approved",
+  "totalReceived": "Total Received",
+  "askGigShield": "Ask GigShield",
+  "logout": "Logout"
+}
